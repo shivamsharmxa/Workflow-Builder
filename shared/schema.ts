@@ -9,6 +9,7 @@ export const workflows = pgTable("workflows", {
   nodes: jsonb("nodes").notNull().default([]), // ReactFlow nodes
   edges: jsonb("edges").notNull().default([]), // ReactFlow edges
   credits: integer("credits").notNull().default(149),
+  runs: integer("runs").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -24,10 +25,12 @@ export const insertWorkflowSchema = createInsertSchema(workflows).omit({
 export type Workflow = typeof workflows.$inferSelect;
 export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
 
-// Node Data Types (for strict typing in frontend)
+// Node Data Types
 export interface BaseNodeData extends Record<string, unknown> {
   label: string;
   cost?: number;
+  status?: 'idle' | 'running' | 'success' | 'error';
+  previewUrl?: string;
 }
 
 export interface PromptNodeData extends BaseNodeData {
@@ -39,13 +42,14 @@ export interface LumaNodeData extends BaseNodeData {
   aspectRatio: string;
   loop: boolean;
   concepts?: string;
-  previewUrl?: string;
-  status?: 'idle' | 'running' | 'success' | 'error';
 }
 
 export interface FluxNodeData extends BaseNodeData {
-  previewUrl?: string;
-  status?: 'idle' | 'running' | 'success' | 'error';
+}
+
+export interface ImportNodeData extends BaseNodeData {
+  fileType?: 'image' | 'video';
+  fileName?: string;
 }
 
 // Request types
