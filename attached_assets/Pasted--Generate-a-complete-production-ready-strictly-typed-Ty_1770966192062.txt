@@ -1,0 +1,33 @@
+"Generate a complete, production-ready, strictly typed TypeScript frontend prototype that replicates the exact Weavy.ai workflow editor UI as shown in the specific screenshot: dark mode node-based canvas with 'My First Weavy' workflow, including Prompt node connected to Luma Ray 2 Flash and Flux Fast nodes, right properties panel for Luma node (Duration, Aspect Ratio, Loop toggle, Concepts, 'Add another' button), bottom run panel with tool icons, zoom, 'Run selected nodes' yellow button, runs counter, total cost with credits. Use React 18+ (Vite), @reactflow/core for infinite canvas/nodes/edges, Tailwind CSS for styling, Zustand for state, lucide-react for icons. Enforce no 'any' types—define interfaces for NodeData (unions), Edge, PortType enum, etc. Make it fully interactive: drag/add nodes from left sidebar, connect ports (purple lines with labels), select node to show right panel, mock 'Run' (3s delay, update previews with placeholders), zoom/pan (no grid dots in canvas, but checkerboard in empty previews), context menus, persistence.
+Exact Design Specs from Screenshot (Pixel-Perfect):
+
+Global: Dark theme enforced. Canvas bg #000000 (pure black, no grid—subtle texture only in empty video previews as checkerboard #1A1A1A on #000000). Fonts: System sans-serif like Inter or SF Pro (import 'Inter' from Google Fonts), variable weights—regular 400 for body (12-14px, lh 1.5), medium 500 for labels, bold 600-700 for titles (14-16px). Text primary #FFFFFF, secondary #A0A0A0-#9CA3AF, placeholders #6B7280. Borders: subtle #333333 1px. Shadows: soft node shadow-[0_4px_12px_rgba(0,0,0,0.3)]. Rounded corners: nodes 8px (rounded-lg), buttons 4px (rounded-md), inputs 4px.
+Colors (sampled HEX): Nodes bg #1C1C1E-#202023, title bg #28282B. Connections #C084FC (light purple, thin 2px bezier curves, no arrows, small white dot ports #FFFFFF outline/fill). Accents: Purple #C084FC (connections, some labels), Yellow #F5F5DC (run button bg, light beige with black text), Green #22C55E (success? not in shot), Red #EF4444 (errors). Credits star white #FFFFFF with asterisk. Hover: bg lighten 10% (e.g., #2A2A2D), scale-105 transition-200ms.
+Icons: lucide-react or similar minimal line icons, gray #6B7280-#9CA3AF (20-24px, stroke 1.5), white #FFFFFF for active. Left sidebar icons: Search (magnifying glass), Toolbox (box), Sparkle (star), Video (play), Cube (3D), etc.
+
+Layout & Components (Exact Match to Screenshot):
+
+App.tsx: Full-screen flex-col bg-#000000. Top Navbar (h-10), flex-row for Left Sidebar (w-12 fixed, icons only), Canvas (flex-1), Right Panel (w-64 fixed, bg-#121212 border-l #222224). Bottom Run Panel (h-12 fixed bottom-right aligned, bg-#111111).
+Navbar (h-10 bg-#111111 flex items-center px-4 border-b #222224): Left: Weavy logo (bold white 'W' 24px, no text). Workflow title input (#1C1C1E bg, #A0A0A0 text, rounded-full px-3 py-1, focus #333333 border). Right: Credits ('* 149 credits' white 14px with asterisk), Share button (light gray #4A4A4A bg, white text 'Share' with undo-like arrow? rounded-md px-3 py-1), Tasks dropdown (#1C1C1E bg, white text 'Tasks v').
+Left Sidebar (w-12 bg-#0A0A0A border-r #222224 flex-col items-center py-4 space-y-6): Vertical icons only (no text): Search (top), Toolbox, Sparkle, Video camera, Cube, Square, ? help (bottom), Monkey face (discord-like). Gray #6B7280, hover white #FFFFFF.
+Canvas (ReactFlow flex-1 bg-#000000): Infinite pan/zoom, no visible grid. Nodes draggable, snap optional. Preload sample like screenshot: Prompt node (left, connected down to Luma Ray 2 Flash video node, branched to Flux Fast image node).
+Right Properties Panel (w-64 bg-#121212 border-l #222224 p-4 overflow-y-auto): For selected node (e.g., Luma Ray 2 Flash): Title 'Luma Ray 2 Flash' white bold 16px with '* 36' cost gray. Form: Duration dropdown (5, bg-#1C1C1E text-white rounded-md), Aspect Ratio input (16:9, same style), Loop checkbox (square #1C1C1E, check white), Concepts dropdown, 'Add another' button (gray #4A4A4A bg, white text, rounded-md hover #5A5A5A).
+Bottom Run Panel (fixed bottom-0 right-0 w-64 h-12 bg-#111111 border-t #222224 flex items-center px-4 justify-between): Left: Icons group—Pointer (yellow #F5F5DC bg triangle icon), Hand (grab), Undo, Redo (gray #6B7280, 20px). Zoom dropdown (#1C1C1E bg, white text '38% v' rounded-md). Right: 'Run selected nodes' toggle? No—separate bottom-right section: 'Run selected nodes' label gray, Runs counter (#1C1C1E bg, white text '- 1 +'), Total cost '* 36 credits' gray, '-> Run selected' button (pale yellow #F5F5DC bg, black text, rounded-md px-4 py-1.5). Also 'Turn auto run off' toggle (yellow switch? in shot bottom-leftish).
+
+Nodes & Connections (Exact from Screenshot):
+
+Nodes: Rectangular 200-300px wide, bg #1C1C1E, rounded-lg (8px), shadow-md. Title bar (top, bg #28282B, white 14px bold, e.g., 'Prompt', 'Luma Ray 2 Flash' with '* 36' gray right). Content padding 4px.
+Prompt Node: Textarea (bg #28282B, text #A0A0A0 12px, no border, placeholder-like text 'A cinematic scene...').
+Model Nodes (Luma/Flux): Preview area (image or video placeholder—checkerboard #1A1A1A on black for empty, rounded 4px), bottom 'Run Model' button (gray #4A4A4A bg, white text, rounded-sm small).
+
+Ports: Small 8px circles on sides, white #FFFFFF outline, positioned at labels like 'Prompt' (greenish #22C55E? label text left of input port). Outputs right.
+Connections: Smooth bezier #C084FC purple 2px, from output to input, curved naturally, no arrows.
+
+Functionality & State:
+
+Interactions: Drag icons from left to add nodes, connect ports (only compatible types), select node (highlight #C084FC border 2px) to populate right panel, 'Run' button mocks generation (spinner cyan #00D4FF, update preview).
+Zustand Store: nodes/edges arrays, selectedId, credits: number, runs: number, autoRun: boolean.
+Mock: On run, timeout 3s, set preview to placeholder image/video.
+Extras: Context menu on node (duplicate/delete), localStorage save.
+
+Output full project: vite.config.ts, tsconfig.json, package.json (deps incl. @fontsource/inter), tailwind.config.ts (extend colors { weavy-purple: '#C084FC', weavy-yellow: '#F5F5DC' }), index.css (@tailwind + font 'Inter'), App.tsx, components (Navbar, Sidebar, etc.), types.ts.
