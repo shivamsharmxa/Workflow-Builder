@@ -4,13 +4,7 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-[#C084FC] to-[#8040C0] items-center justify-center shadow-lg shadow-purple-900/20 mb-4">
-            <span className="font-bold text-white text-3xl">W</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Create Your Account</h1>
-          <p className="text-gray-400 text-sm">Start building powerful workflows in minutes</p>
-        </div>
+        {/* Removed logo and text for cleaner UI */}
         
         <SignUp
           appearance={{
