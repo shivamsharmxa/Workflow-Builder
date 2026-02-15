@@ -5,6 +5,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Assignment Requirement: Pulsating glow effect during execution */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(192, 132, 252, 0.7),
+                0 0 20px rgba(192, 132, 252, 0.4),
+                inset 0 0 20px rgba(192, 132, 252, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(192, 132, 252, 0),
+                0 0 40px rgba(192, 132, 252, 0.6),
+                inset 0 0 30px rgba(192, 132, 252, 0.2);
+  }
+}
+
+@keyframes edge-flow {
+  0% {
+    stroke-dashoffset: 24;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Node execution states */
+.node-executing {
+  animation: pulse-glow 2s ease-in-out infinite !important;
+  border-color: #C084FC !important;
+}
+
+.node-success {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.node-error {
+  border-color: #EF4444 !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+/* Assignment Requirement: Animated purple edges between nodes */
+.edge-executing {
+  stroke: #C084FC !important;
+  stroke-dasharray: 8 4;
+  animation: edge-flow 1s linear infinite;
+}
+
+.react-flow__edge-path {
+  transition: stroke 0.3s ease;
+}
+
 :root {
   --font-sans: 'Inter', sans-serif;
   

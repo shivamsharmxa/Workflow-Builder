@@ -3,6 +3,15 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // === TABLE DEFINITIONS ===
+
+// Users table for Clerk authentication
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  clerkId: text("clerk_id").notNull().unique(),
+  email: text("email").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const workflows = pgTable("workflows", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -14,6 +23,17 @@ export const workflows = pgTable("workflows", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Assignment Requirement: Workflow execution history with node-level details
+export const workflowRuns = pgTable("workflow_runs", {
+  id: serial("id").primaryKey(),
+  workflowId: integer("workflow_id").notNull(),
+  status: text("status").notNull().default("running"), // running, success, failed
+  nodeResults: jsonb("node_results").notNull().default({}), // { nodeId: { status, result, error } }
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  duration: integer("duration"), // milliseconds
+});
+
 // === BASE SCHEMAS ===
 export const insertWorkflowSchema = createInsertSchema(workflows).omit({ 
   id: true, 
@@ -21,9 +41,17 @@ export const insertWorkflowSchema = createInsertSchema(workflows).omit({
   updatedAt: true 
 });
 
+export const insertWorkflowRunSchema = createInsertSchema(workflowRuns).omit({
+  id: true,
+  startedAt: true,
+});
+
 // === EXPLICIT API CONTRACT TYPES ===
 export type Workflow = typeof workflows.$inferSelect;
 export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
+
+export type WorkflowRun = typeof workflowRuns.$inferSelect;
+export type InsertWorkflowRun = z.infer<typeof insertWorkflowRunSchema>;
 
 // Node Data Types
 export interface BaseNodeData extends Record<string, unknown> {

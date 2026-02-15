@@ -38,69 +38,7 @@ export function PropertiesPanel() {
         <p className="text-xs text-gray-500">ID: {selectedNode.id}</p>
       </div>
 
-      {/* Form Fields */}
-      <div className="p-4 space-y-6">
-        
-        {/* Dynamic fields based on node type */}
-        {selectedNode.type === 'luma' && (
-          <>
-            <div className="space-y-3">
-              <label className="text-xs font-medium text-gray-400 flex items-center justify-between">
-                Duration
-                <span className="text-xs text-gray-600">{data.duration}s</span>
-              </label>
-              <Slider 
-                defaultValue={[data.duration || 5]} 
-                max={10} 
-                step={1} 
-                onValueChange={(val) => updateNodeData(selectedNode.id, { duration: val[0] })}
-                className="[&_.bg-primary]:bg-[#C084FC]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-400">Aspect Ratio</label>
-              <select 
-                className="w-full bg-[#1C1C1E] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-[#C084FC]"
-                value={data.aspectRatio}
-                onChange={(e) => updateNodeData(selectedNode.id, { aspectRatio: e.target.value })}
-              >
-                <option value="16:9">16:9 Landscape</option>
-                <option value="9:16">9:16 Portrait</option>
-                <option value="1:1">1:1 Square</option>
-              </select>
-            </div>
-
-            <div className="flex items-center justify-between py-2">
-              <label className="text-xs font-medium text-gray-400 flex items-center gap-2">
-                Loop Video
-                <HelpCircle className="w-3 h-3 text-gray-600" />
-              </label>
-              <Switch 
-                checked={data.loop}
-                onCheckedChange={(checked) => updateNodeData(selectedNode.id, { loop: checked })}
-              />
-            </div>
-          </>
-        )}
-
-        {selectedNode.type === 'prompt' && (
-           <div className="space-y-2">
-             <label className="text-xs font-medium text-gray-400">Prompt Text</label>
-             <textarea 
-                className="w-full h-32 bg-[#1C1C1E] border border-[#333] rounded-lg p-3 text-sm text-gray-200 resize-none focus:outline-none focus:border-[#C084FC]"
-                value={data.prompt}
-                onChange={(e) => updateNodeData(selectedNode.id, { prompt: e.target.value })}
-             />
-           </div>
-        )}
-
-        {/* Generic Add Button */}
-        <button className="w-full py-2 border border-dashed border-[#333] rounded-lg text-gray-500 text-xs hover:border-[#C084FC] hover:text-[#C084FC] transition-colors flex items-center justify-center gap-2">
-          <Plus className="w-3 h-3" />
-          Add Parameter
-        </button>
-      </div>
+Tool call argument 'replace' pruned from message history.
 
     </aside>
   );

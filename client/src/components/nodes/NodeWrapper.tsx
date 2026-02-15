@@ -8,13 +8,17 @@ interface NodeWrapperProps {
   children: ReactNode;
   cost?: number;
   headerColor?: string;
+  status?: "idle" | "running" | "success" | "error";
 }
 
-export function NodeWrapper({ label, selected, children, cost, headerColor }: NodeWrapperProps) {
+export function NodeWrapper({ label, selected, children, cost, headerColor, status }: NodeWrapperProps) {
   return (
     <div className={cn(
       "w-[280px] rounded-xl bg-[#1C1C1E] border-2 shadow-xl transition-all duration-200 overflow-hidden",
-      selected ? "border-[#C084FC] shadow-[#C084FC]/20" : "border-[#333333] shadow-black/40"
+      selected ? "border-[#C084FC] shadow-[#C084FC]/20" : "border-[#333333] shadow-black/40",
+      status === "running" && "node-executing",
+      status === "success" && "node-success",
+      status === "error" && "node-error"
     )}>
       {/* Input Handle */}
       <Handle 

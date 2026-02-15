@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": null,
+  "outputDirectory": "dist",
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "CLERK_PUBLISHABLE_KEY": "@clerk_publishable_key",
+    "CLERK_SECRET_KEY": "@clerk_secret_key",
+    "VITE_CLERK_PUBLISHABLE_KEY": "@clerk_publishable_key",
+    "TRIGGER_API_KEY": "@trigger_api_key",
+    "TRIGGER_API_URL": "https://api.trigger.dev",
+    "GOOGLE_AI_API_KEY": "@google_ai_api_key",
+    "VITE_TRANSLOADIT_KEY": "@transloadit_key",
+    "TRANSLOADIT_KEY": "@transloadit_key",
+    "TRANSLOADIT_TEMPLATE_ID": "@transloadit_template_id"
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

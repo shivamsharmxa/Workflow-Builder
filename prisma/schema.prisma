@@ -1,0 +1,71 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model (from Clerk)
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workflows Workflow[]
+}
+
+// Workflow model
+model Workflow {
+  id        String   @id @default(cuid())
+  title     String
+  nodes     Json     // Store ReactFlow nodes as JSON
+  edges     Json     // Store ReactFlow edges as JSON
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  history WorkflowHistory[]
+
+  @@index([userId])
+}
+
+// Workflow execution history
+model WorkflowHistory {
+  id         String   @id @default(cuid())
+  workflowId String
+  status     String   // "running", "success", "failed"
+  startedAt  DateTime @default(now())
+  completedAt DateTime?
+  error      String?
+
+  workflow         Workflow           @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  nodeExecutions   ExecutionHistory[]
+
+  @@index([workflowId])
+}
+
+// Node-level execution details
+model ExecutionHistory {
+  id              String   @id @default(cuid())
+  workflowHistoryId String
+  nodeId          String
+  nodeName        String
+  status          String   // "pending", "running", "success", "failed"
+  inputs          Json?    // Input data received by the node
+  outputs         Json?    // Output data produced by the node
+  error           String?
+  executionTime   Int?     // in milliseconds
+  createdAt       DateTime @default(now())
+
+  workflowHistory WorkflowHistory @relation(fields: [workflowHistoryId], references: [id], onDelete: Cascade)
+
+  @@index([workflowHistoryId])
+  @@index([nodeId])
+}

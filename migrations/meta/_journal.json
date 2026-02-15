@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1771142567235,
+      "tag": "0000_moaning_firebird",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771143268595,
+      "tag": "0001_wandering_magma",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771160055489,
+      "tag": "0002_fast_moonstone",
+      "breakpoints": true
+    }
+  ]
+}

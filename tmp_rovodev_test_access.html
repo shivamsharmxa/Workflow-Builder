@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Page</title></head>
+<body>
+<h1>If you see this, the server works!</h1>
+<p>Server is running correctly on port 5000</p>
+<script>
+  fetch('/api/workflows')
+    .then(r => r.json())
+    .then(data => {
+      document.body.innerHTML += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+    });
+</script>
+</body>
+</html>

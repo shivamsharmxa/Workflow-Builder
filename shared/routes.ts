@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertWorkflowSchema, workflows } from './schema';
+import { insertWorkflowSchema, workflows, insertWorkflowRunSchema, workflowRuns } from './schema';
 
 // ============================================
 // SHARED ERROR SCHEMAS
@@ -65,6 +65,32 @@ export const api = {
       },
     },
   },
+  workflowRuns: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/workflows/:workflowId/runs' as const,
+      responses: {
+        200: z.array(z.custom<typeof workflowRuns.$inferSelect>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/workflow-runs/:id' as const,
+      responses: {
+        200: z.custom<typeof workflowRuns.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/workflows/:workflowId/runs' as const,
+      input: insertWorkflowRunSchema,
+      responses: {
+        201: z.custom<typeof workflowRuns.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+  },
 };
 
 // ============================================
@@ -87,3 +113,5 @@ export function buildUrl(path: string, params?: Record<string, string | number>)
 // ============================================
 export type WorkflowInput = z.infer<typeof api.workflows.create.input>;
 export type WorkflowResponse = z.infer<typeof api.workflows.create.responses[201]>;
+export type WorkflowRunInput = z.infer<typeof api.workflowRuns.create.input>;
+export type WorkflowRunResponse = z.infer<typeof api.workflowRuns.create.responses[201]>;
