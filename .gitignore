@@ -1,6 +1,41 @@
+# Dependencies
 node_modules
+
+# Build output
 dist
-.DS_Store
 server/public
+
+# Environment variables (CRITICAL - never commit!)
+.env
+.env.local
+.env.*.local
+
+# Documentation and notes (exclude from repo)
+*.md
+!README.md
+
+# OS files
+.DS_Store
+
+# Config
 vite.config.ts.*
 *.tar.gz
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+tmp/
+tmp_*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Drizzle
+migrations/*.sql
