@@ -15,7 +15,7 @@ export default function SignInPage() {
               headerSubtitle: "text-gray-400",
               socialButtonsBlockButton: "bg-[#28282B] border-[#333] text-white hover:bg-[#333]",
               formButtonPrimary: "bg-[#C084FC] hover:bg-[#A855F7] text-white",
-              formFieldInput: "bg-[#28282B] border-[#333] text-white",
+              formFieldInput: "bg-[#28282B] border-[#333] text-white placeholder:text-gray-500",
               formFieldLabel: "text-gray-300",
               footerActionLink: "text-[#C084FC] hover:text-[#A855F7]",
               identityPreviewText: "text-white",

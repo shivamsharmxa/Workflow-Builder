@@ -1,15 +1,20 @@
-import { MousePointer2, Hand, Undo2, Redo2, Minus, Plus, Play } from "lucide-react";
+import { MousePointer2, Hand, Undo2, Redo2, Minus, Plus, Play, CheckSquare } from "lucide-react";
 import { useWorkflowStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export function BottomBar() {
   const isRunning = useWorkflowStore((state) => state.isRunning);
   const runEntireWorkflow = useWorkflowStore((state) => state.runEntireWorkflow);
+  const runSelectedNodes = useWorkflowStore((state) => state.runSelectedNodes);
+  const nodes = useWorkflowStore((state) => state.nodes);
   const undo = useWorkflowStore((state) => state.undo);
   const redo = useWorkflowStore((state) => state.redo);
   const canUndo = useWorkflowStore((state) => state.canUndo);
   const canRedo = useWorkflowStore((state) => state.canRedo);
   const credits = useWorkflowStore((state) => state.credits);
+  
+  // Count selected nodes
+  const selectedCount = nodes.filter(n => n.selected).length;
 
   // Mock costs for calculation
   const totalCost = 10; 
@@ -45,32 +50,65 @@ export function BottomBar() {
       </div>
 
       {/* Run Controls */}
-      <div className="flex items-center gap-0 bg-[#1C1C1E] border border-[#2A2A2C] rounded-lg shadow-xl overflow-hidden">
-        <div className="px-4 py-2 flex flex-col justify-center border-r border-[#2A2A2C]">
-          <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Est. Cost</span>
-          <span className="text-sm font-mono text-yellow-400">{totalCost}</span>
-        </div>
+      <div className="flex items-center gap-2">
+        {/* Run Selected Nodes Button */}
+        {selectedCount > 0 && (
+          <div className="flex items-center gap-0 bg-[#1C1C1E] border border-[#2A2A2C] rounded-lg shadow-xl overflow-hidden">
+            <div className="px-3 py-2 flex flex-col justify-center border-r border-[#2A2A2C]">
+              <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Selected</span>
+              <span className="text-sm font-mono text-purple-400">{selectedCount} nodes</span>
+            </div>
+            
+            <button 
+              onClick={runSelectedNodes}
+              disabled={isRunning}
+              className={cn(
+                "px-4 py-3 bg-[#C084FC] hover:bg-[#A855F7] text-white font-semibold text-sm flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+            >
+              {isRunning ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Running...
+                </>
+              ) : (
+                <>
+                  <CheckSquare className="w-4 h-4" />
+                  Run Selected
+                </>
+              )}
+            </button>
+          </div>
+        )}
         
-        <button 
-          onClick={runEntireWorkflow}
-          disabled={isRunning}
-          className={cn(
-            "px-6 py-3 bg-[#F5F5DC] hover:bg-[#EBEBC0] text-black font-semibold text-sm flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
-            isRunning && "bg-yellow-200/50"
-          )}
-        >
-          {isRunning ? (
-            <>
-              <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-              Running...
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4 fill-current" />
-              Run Workflow
-            </>
-          )}
-        </button>
+        {/* Run Entire Workflow Button */}
+        <div className="flex items-center gap-0 bg-[#1C1C1E] border border-[#2A2A2C] rounded-lg shadow-xl overflow-hidden">
+          <div className="px-4 py-2 flex flex-col justify-center border-r border-[#2A2A2C]">
+            <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">Est. Cost</span>
+            <span className="text-sm font-mono text-yellow-400">{totalCost}</span>
+          </div>
+          
+          <button 
+            onClick={runEntireWorkflow}
+            disabled={isRunning}
+            className={cn(
+              "px-6 py-3 bg-[#F5F5DC] hover:bg-[#EBEBC0] text-black font-semibold text-sm flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
+              isRunning && "bg-yellow-200/50"
+            )}
+          >
+            {isRunning ? (
+              <>
+                <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                Running...
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 fill-current" />
+                Run Workflow
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

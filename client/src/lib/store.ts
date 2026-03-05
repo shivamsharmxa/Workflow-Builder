@@ -29,6 +29,7 @@ type WorkflowState = {
   selectedNodeId: string | null;
   credits: number;
   isRunning: boolean;
+  currentWorkflowId: number | null;
   
   // Assignment Requirement: Undo/Redo
   history: HistoryState[];
@@ -42,6 +43,7 @@ type WorkflowState = {
   addNode: (type: string, position: { x: number; y: number }, data: Record<string, any>) => void;
   deleteNode: (id: string) => void;
   getNodeInputs: (nodeId: string) => Record<string, any>;
+  setCurrentWorkflowId: (id: number | null) => void;
   
   // Assignment Requirement: Undo/Redo
   undo: () => void;
@@ -108,6 +110,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   selectedNodeId: null,
   credits: 149,
   isRunning: false,
+  currentWorkflowId: null,
   history: [{ nodes: initialNodes, edges: initialEdges }],
   historyIndex: 0,
 
@@ -155,6 +158,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   // Helper to get inputs from connected nodes
   getNodeInputs: (nodeId: string) => {
     return getNodeInputs(nodeId, get().nodes, get().edges);
+  },
+  
+  setCurrentWorkflowId: (id: number | null) => {
+    set({ currentWorkflowId: id });
   },
   
   addNode: (type, position, data) => {
@@ -212,22 +219,97 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     if (get().isRunning) return;
     
     const executionOrder = getExecutionOrder(get().nodes, get().edges);
+    const startTime = Date.now();
+    const nodeResults: Record<string, any> = {};
     
     set({ isRunning: true });
+    
+    // Get workflow ID from current workflow (will be passed from Editor component)
+    const workflowId = (get() as any).currentWorkflowId;
+    
+    let runId: number | null = null;
+    
+    // Create workflow run record
+    if (workflowId) {
+      try {
+        const response = await fetch(`/api/workflows/${workflowId}/runs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workflowId,
+            status: 'running',
+            nodeResults: {},
+          }),
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const run = await response.json();
+          runId = run.id;
+        }
+      } catch (error) {
+        console.error('Failed to create workflow run:', error);
+      }
+    }
+    
+    let hasError = false;
     
     // Execute nodes in topological order
     for (const nodeId of executionOrder) {
       const node = get().nodes.find(n => n.id === nodeId);
       if (!node) continue;
       
+      const nodeStartTime = Date.now();
+      
       // Set to running
       get().updateNodeData(nodeId, { status: 'running' });
       
-      // Simulate execution
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Set to success
-      get().updateNodeData(nodeId, { status: 'success' });
+      try {
+        // Simulate execution
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Set to success
+        get().updateNodeData(nodeId, { status: 'success' });
+        
+        nodeResults[nodeId] = {
+          status: 'success',
+          nodeType: node.type,
+          nodeName: node.data.label || node.type,
+          executionTime: Date.now() - nodeStartTime,
+          completedAt: new Date().toISOString(),
+        };
+      } catch (error: any) {
+        hasError = true;
+        get().updateNodeData(nodeId, { status: 'error' });
+        
+        nodeResults[nodeId] = {
+          status: 'failed',
+          nodeType: node.type,
+          nodeName: node.data.label || node.type,
+          error: error.message,
+          executedAt: new Date().toISOString(),
+        };
+      }
+    }
+    
+    const duration = Date.now() - startTime;
+    
+    // Update workflow run with results
+    if (runId && workflowId) {
+      try {
+        await fetch(`/api/runs/${runId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: hasError ? 'failed' : 'success',
+            nodeResults,
+            duration,
+          }),
+          credentials: 'include',
+        });
+      } catch (error) {
+        console.error('Failed to update workflow run:', error);
+      }
     }
     
     set({ isRunning: false });

@@ -86,6 +86,7 @@ export const UploadVideoNode = memo(({ id, data, selected }: NodeProps<UploadVid
     <NodeWrapper
       label={data.label}
       selected={selected}
+      nodeId={id}
     >
       <div className="space-y-3">
         <label htmlFor={`upload-video-${id}`} className="cursor-pointer">

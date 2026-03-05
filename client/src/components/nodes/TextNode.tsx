@@ -18,6 +18,7 @@ export const TextNode = memo(({ id, data, selected }: NodeProps<TextNodeData>) =
       <NodeWrapper
         label={data.label}
         selected={selected}
+        nodeId={id}
       >
         <div className="space-y-2">
           <label className="text-xs text-gray-400">Text</label>

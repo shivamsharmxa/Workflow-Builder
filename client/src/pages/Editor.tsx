@@ -32,11 +32,20 @@ export default function Editor() {
     onEdgesChange, 
     onConnect,
     setSelectedNode,
-    addNode
+    addNode,
+    setCurrentWorkflowId
   } = useWorkflowStore();
 
   const reactFlowWrapper = React.useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = React.useState<any>(null);
+  
+  // For now, use a default workflow ID (you can get this from URL params or state)
+  // In production, this would come from routing or workflow selection
+  const workflowId = 1; // Default workflow ID
+  
+  React.useEffect(() => {
+    setCurrentWorkflowId(workflowId);
+  }, [workflowId, setCurrentWorkflowId]);
 
   const onDragOver = React.useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -173,7 +182,7 @@ export default function Editor() {
         </div>
 
         {/* Right Sidebar - Assignment Requirement: Workflow History */}
-        <WorkflowHistory />
+        <WorkflowHistory workflowId={workflowId} />
       </main>
     </div>
   );

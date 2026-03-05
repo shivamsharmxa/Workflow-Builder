@@ -24,14 +24,19 @@ export const ExtractFrameNode = memo(({ id, data, selected }: NodeProps<ExtractF
   const [isRunning, setIsRunning] = useState(false);
   const fetchWithAuth = useFetchWithAuth();
 
-  // Auto-get video from connected node
+  // Auto-get video from connected node - check whenever edges change
+  const edges = useWorkflowStore((state) => state.edges);
+  
   useEffect(() => {
     const inputs = getNodeInputs(id);
     const inputValues = Object.values(inputs);
-    if (inputValues.length > 0 && !data.videoUrl) {
-      updateNodeData(id, { videoUrl: String(inputValues[0]) });
+    if (inputValues.length > 0) {
+      const newVideoUrl = String(inputValues[0]);
+      if (newVideoUrl !== data.videoUrl) {
+        updateNodeData(id, { videoUrl: newVideoUrl });
+      }
     }
-  }, []);
+  }, [edges, id, getNodeInputs, updateNodeData]);
 
   const handleExtract = async () => {
     // Get latest input
@@ -45,7 +50,7 @@ export const ExtractFrameNode = memo(({ id, data, selected }: NodeProps<ExtractF
     }
 
     setIsRunning(true);
-    updateNodeData(id, { status: "running" });
+    updateNodeData(id, { status: "running", error: undefined });
 
     try {
       // Call API to extract frame via Trigger.dev (with auth token)
@@ -65,6 +70,7 @@ export const ExtractFrameNode = memo(({ id, data, selected }: NodeProps<ExtractF
         updateNodeData(id, {
           frameUrl: result.result,
           status: "success",
+          error: undefined,
         });
       } else {
         throw new Error(result.error || "Frame extraction failed");
@@ -83,6 +89,7 @@ export const ExtractFrameNode = memo(({ id, data, selected }: NodeProps<ExtractF
     <NodeWrapper
       label={data.label}
       selected={selected}
+      nodeId={id}
     >
       <div className="space-y-3">
         {/* Timestamp input */}
@@ -94,8 +101,10 @@ export const ExtractFrameNode = memo(({ id, data, selected }: NodeProps<ExtractF
             type="number"
             min="0"
             max={data.isPercentage ? 100 : undefined}
+            step="1"
             value={data.timestamp || 0}
             onChange={(e) => updateNodeData(id, { timestamp: Number(e.target.value) })}
+            onWheel={(e) => e.currentTarget.blur()}
             className="bg-[#28282B] border-[#333] text-white text-sm"
           />
         </div>
@@ -133,11 +142,17 @@ export const ExtractFrameNode = memo(({ id, data, selected }: NodeProps<ExtractF
         {data.frameUrl && (
           <div className="space-y-1">
             <label className="text-xs text-gray-400">Extracted Frame</label>
-            <img
-              src={data.frameUrl}
-              alt="Extracted frame"
-              className="w-full h-32 object-cover rounded border border-[#333]"
-            />
+            <div className="w-full h-32 rounded border border-[#333] bg-black/50 flex items-center justify-center overflow-hidden">
+              <img
+                src={data.frameUrl}
+                alt="Extracted frame"
+                className="max-w-full max-h-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<p class="text-xs text-red-400">Failed to load image</p>';
+                }}
+              />
+            </div>
           </div>
         )}
 

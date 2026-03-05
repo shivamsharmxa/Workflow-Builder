@@ -147,6 +147,7 @@ export const LLMNode = memo(({ id, data, selected }: NodeProps<LLMNodeData>) => 
       <NodeWrapper
         label={data.label}
         selected={selected}
+        nodeId={id}
       >
         <div className="space-y-3">
           {/* Model selector */}

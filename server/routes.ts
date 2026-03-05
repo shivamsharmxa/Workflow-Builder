@@ -93,11 +93,28 @@ export async function registerRoutes(
   });
 
   app.put('/api/runs/:id', async (req, res) => {
-    const run = await storage.updateWorkflowRun(Number(req.params.id), req.body);
-    if (!run) {
-      return res.status(404).json({ message: 'Run not found' });
+    try {
+      const updates = { ...req.body };
+      
+      // Convert string dates to Date objects
+      if (updates.completedAt && typeof updates.completedAt === 'string') {
+        updates.completedAt = new Date(updates.completedAt);
+      }
+      
+      // Set completedAt to now if status is success or failed and not already set
+      if (updates.status && updates.status !== 'running' && !updates.completedAt) {
+        updates.completedAt = new Date();
+      }
+      
+      const run = await storage.updateWorkflowRun(Number(req.params.id), updates);
+      if (!run) {
+        return res.status(404).json({ message: 'Run not found' });
+      }
+      res.json(run);
+    } catch (error: any) {
+      console.error('Error updating run:', error);
+      res.status(500).json({ message: error.message || 'Failed to update run' });
     }
-    res.json(run);
   });
 
   // === EXECUTION API (Assignment Requirement: Execute via Trigger.dev) ===

@@ -25,14 +25,19 @@ export const CropImageNode = memo(({ id, data, selected }: NodeProps<CropImageNo
   const [isRunning, setIsRunning] = useState(false);
   const fetchWithAuth = useFetchWithAuth();
 
-  // Auto-get image from connected node
+  // Auto-get image from connected node - check whenever edges change
+  const edges = useWorkflowStore((state) => state.edges);
+  
   useEffect(() => {
     const inputs = getNodeInputs(id);
     const inputValues = Object.values(inputs);
-    if (inputValues.length > 0 && !data.imageUrl) {
-      updateNodeData(id, { imageUrl: String(inputValues[0]) });
+    if (inputValues.length > 0) {
+      const newImageUrl = String(inputValues[0]);
+      if (newImageUrl !== data.imageUrl) {
+        updateNodeData(id, { imageUrl: newImageUrl });
+      }
     }
-  }, []);
+  }, [edges, id, getNodeInputs, updateNodeData]);
 
   const handleCrop = async () => {
     // Get latest input
@@ -46,7 +51,7 @@ export const CropImageNode = memo(({ id, data, selected }: NodeProps<CropImageNo
     }
 
     setIsRunning(true);
-    updateNodeData(id, { status: "running" });
+    updateNodeData(id, { status: "running", error: undefined });
 
     try {
       // Call API to crop image via Trigger.dev (with auth token)
@@ -68,6 +73,7 @@ export const CropImageNode = memo(({ id, data, selected }: NodeProps<CropImageNo
         updateNodeData(id, {
           croppedUrl: result.result,
           status: "success",
+          error: undefined,
         });
       } else {
         throw new Error(result.error || "Crop failed");
@@ -86,6 +92,7 @@ export const CropImageNode = memo(({ id, data, selected }: NodeProps<CropImageNo
     <NodeWrapper
       label={data.label}
       selected={selected}
+      nodeId={id}
     >
       <div className="space-y-3">
         {/* Crop parameters */}
@@ -96,8 +103,10 @@ export const CropImageNode = memo(({ id, data, selected }: NodeProps<CropImageNo
               type="number"
               min="0"
               max="100"
+              step="1"
               value={data.x || 0}
               onChange={(e) => updateNodeData(id, { x: Number(e.target.value) })}
+              onWheel={(e) => e.currentTarget.blur()}
               className="bg-[#28282B] border-[#333] text-white text-sm h-8"
             />
           </div>
@@ -107,8 +116,10 @@ export const CropImageNode = memo(({ id, data, selected }: NodeProps<CropImageNo
               type="number"
               min="0"
               max="100"
+              step="1"
               value={data.y || 0}
               onChange={(e) => updateNodeData(id, { y: Number(e.target.value) })}
+              onWheel={(e) => e.currentTarget.blur()}
               className="bg-[#28282B] border-[#333] text-white text-sm h-8"
             />
           </div>
@@ -118,8 +129,10 @@ export const CropImageNode = memo(({ id, data, selected }: NodeProps<CropImageNo
               type="number"
               min="1"
               max="100"
+              step="1"
               value={data.width || 100}
               onChange={(e) => updateNodeData(id, { width: Number(e.target.value) })}
+              onWheel={(e) => e.currentTarget.blur()}
               className="bg-[#28282B] border-[#333] text-white text-sm h-8"
             />
           </div>
@@ -129,8 +142,10 @@ export const CropImageNode = memo(({ id, data, selected }: NodeProps<CropImageNo
               type="number"
               min="1"
               max="100"
+              step="1"
               value={data.height || 100}
               onChange={(e) => updateNodeData(id, { height: Number(e.target.value) })}
+              onWheel={(e) => e.currentTarget.blur()}
               className="bg-[#28282B] border-[#333] text-white text-sm h-8"
             />
           </div>
@@ -160,11 +175,17 @@ export const CropImageNode = memo(({ id, data, selected }: NodeProps<CropImageNo
         {data.croppedUrl && (
           <div className="space-y-1">
             <label className="text-xs text-gray-400">Cropped Result</label>
-            <img
-              src={data.croppedUrl}
-              alt="Cropped"
-              className="w-full h-32 object-cover rounded border border-[#333]"
-            />
+            <div className="w-full h-32 rounded border border-[#333] bg-black/50 flex items-center justify-center overflow-hidden">
+              <img
+                src={data.croppedUrl}
+                alt="Cropped"
+                className="max-w-full max-h-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<p class="text-xs text-red-400">Failed to load image</p>';
+                }}
+              />
+            </div>
           </div>
         )}
 

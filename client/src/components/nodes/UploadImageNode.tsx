@@ -103,6 +103,7 @@ export const UploadImageNode = memo(({ id, data, selected }: NodeProps<UploadIma
     <NodeWrapper
       label={data.label}
       selected={selected}
+      nodeId={id}
     >
       <div className="space-y-3">
         <label htmlFor={`upload-${id}`} className="cursor-pointer">

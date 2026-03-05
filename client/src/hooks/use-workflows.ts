@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type WorkflowInput } from "@shared/routes";
+import { api, buildUrl, type WorkflowInput, type WorkflowRunInput } from "@shared/routes";
 
 export function useWorkflows() {
   return useQuery({
@@ -76,5 +76,59 @@ export function useDeleteWorkflow() {
       if (!res.ok) throw new Error("Failed to delete workflow");
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.workflows.list.path] }),
+  });
+}
+
+// Workflow Runs hooks
+export function useWorkflowRuns(workflowId: number | null) {
+  return useQuery({
+    queryKey: [api.workflowRuns.list.path, workflowId],
+    queryFn: async () => {
+      if (!workflowId) return [];
+      const url = buildUrl(api.workflowRuns.list.path, { workflowId });
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch workflow runs");
+      return api.workflowRuns.list.responses[200].parse(await res.json());
+    },
+    enabled: !!workflowId,
+  });
+}
+
+export function useCreateWorkflowRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ workflowId, ...data }: { workflowId: number } & Partial<WorkflowRunInput>) => {
+      const url = buildUrl(api.workflowRuns.create.path, { workflowId });
+      const res = await fetch(url, {
+        method: api.workflowRuns.create.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to create workflow run");
+      return api.workflowRuns.create.responses[201].parse(await res.json());
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.workflowRuns.list.path, variables.workflowId] });
+    },
+  });
+}
+
+export function useUpdateWorkflowRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, workflowId, ...updates }: { id: number; workflowId: number } & Partial<WorkflowRunInput>) => {
+      const res = await fetch(`/api/runs/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to update workflow run");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.workflowRuns.list.path, variables.workflowId] });
+    },
   });
 }

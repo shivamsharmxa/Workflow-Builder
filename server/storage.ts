@@ -67,9 +67,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateWorkflowRun(id: number, updates: Partial<InsertWorkflowRun>): Promise<WorkflowRun> {
+    // Filter out undefined values to prevent issues
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
+    
     const [updated] = await db
       .update(workflowRuns)
-      .set(updates)
+      .set(cleanUpdates)
       .where(eq(workflowRuns.id, id))
       .returning();
     return updated;

@@ -1,323 +1,179 @@
 import { useState, useEffect } from "react";
-import { ChevronRight, Clock, CheckCircle2, XCircle, Loader2, ChevronDown } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { useWorkflowStore } from "@/lib/store";
+import { useWorkflowRuns } from "@/hooks/use-workflows";
 
 interface NodeExecution {
-  id: string;
   nodeId: string;
   nodeName: string;
+  nodeType: string;
   status: "pending" | "running" | "success" | "failed";
   inputs?: any;
   outputs?: any;
   error?: string;
   executionTime?: number;
+  completedAt?: string;
 }
 
-interface WorkflowRun {
-  id: string;
-  workflowId: string;
-  status: "running" | "success" | "failed";
-  startedAt: Date;
-  completedAt?: Date;
-  nodeExecutions: NodeExecution[];
-}
-
-// Mock data for demonstration
-const mockRuns: WorkflowRun[] = [
-  {
-    id: "run-1",
-    workflowId: "wf-1",
-    status: "success",
-    startedAt: new Date(Date.now() - 5 * 60 * 1000),
-    completedAt: new Date(Date.now() - 2 * 60 * 1000),
-    nodeExecutions: [
-      {
-        id: "exec-1",
-        nodeId: "node-1",
-        nodeName: "Text Input",
-        status: "success",
-        inputs: {},
-        outputs: { text: "Hello world" },
-        executionTime: 10,
-      },
-      {
-        id: "exec-2",
-        nodeId: "node-2",
-        nodeName: "Run LLM",
-        status: "success",
-        inputs: { userMessage: "Hello world" },
-        outputs: { result: "Hello! How can I assist you today?" },
-        executionTime: 2500,
-      },
-    ],
-  },
-  {
-    id: "run-2",
-    workflowId: "wf-1",
-    status: "failed",
-    startedAt: new Date(Date.now() - 15 * 60 * 1000),
-    completedAt: new Date(Date.now() - 14 * 60 * 1000),
-    nodeExecutions: [
-      {
-        id: "exec-3",
-        nodeId: "node-1",
-        nodeName: "Upload Image",
-        status: "failed",
-        error: "Failed to upload image: Network error",
-        executionTime: 1000,
-      },
-    ],
-  },
-];
-
-export function WorkflowHistory({ isOpen = true }: { isOpen?: boolean }) {
-  const nodes = useWorkflowStore((state) => state.nodes);
+export function WorkflowHistory({ workflowId, isOpen = true }: { workflowId: number | null; isOpen?: boolean }) {
   const isRunning = useWorkflowStore((state) => state.isRunning);
-  const [runs, setRuns] = useState<WorkflowRun[]>([]);
-  const [selectedRun, setSelectedRun] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
-  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [selectedRun, setSelectedRun] = useState<number | null>(null);
   
-  // Track workflow executions
+  const { data: dbRuns, refetch } = useWorkflowRuns(workflowId);
+  
   useEffect(() => {
-    if (isRunning && !currentRunId) {
-      // Start a new run
-      const runId = `run-${Date.now()}`;
-      const newRun: WorkflowRun = {
-        id: runId,
-        workflowId: 'wf-1',
-        status: 'running',
-        startedAt: new Date(),
-        nodeExecutions: nodes.map(n => ({
-          id: `exec-${n.id}`,
-          nodeId: n.id,
-          nodeName: n.data.label || n.type,
-          status: n.data.status === 'running' ? 'running' : 'pending',
-          inputs: {},
-          outputs: n.data.output ? { result: n.data.output } : undefined,
-        }))
-      };
-      setRuns(prev => [newRun, ...prev]);
-      setCurrentRunId(runId);
-    } else if (!isRunning && currentRunId) {
-      // Finish the run
-      setRuns(prev => prev.map(run => 
-        run.id === currentRunId 
-          ? {
-              ...run,
-              status: nodes.some(n => n.data.status === 'error') ? 'failed' : 'success',
-              completedAt: new Date(),
-              nodeExecutions: nodes.map(n => ({
-                id: `exec-${n.id}`,
-                nodeId: n.id,
-                nodeName: n.data.label || n.type,
-                status: n.data.status === 'error' ? 'failed' : 
-                       n.data.status === 'success' ? 'success' : 'pending',
-                inputs: {},
-                outputs: n.data.output ? { result: n.data.output } : undefined,
-                error: n.data.error,
-                executionTime: 1000,
-              }))
-            }
-          : run
-      ));
-      setCurrentRunId(null);
+    if (!isRunning) {
+      const timer = setTimeout(() => {
+        refetch();
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [isRunning, currentRunId, nodes]);
+  }, [isRunning, refetch]);
   
   if (!isOpen) {
     return null;
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "running":
-        return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
-      case "success":
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-      case "failed":
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Clock className="w-4 h-4 text-gray-500" />;
+  const runs = dbRuns || [];
+  const selectedRunData = runs.find((r) => r.id === selectedRun);
+  
+  const getNodeExecutions = (run: any): NodeExecution[] => {
+    if (!run.nodeResults || typeof run.nodeResults !== 'object') {
+      return [];
     }
+    
+    return Object.entries(run.nodeResults).map(([nodeId, result]: [string, any]) => ({
+      nodeId,
+      nodeName: result.nodeName || nodeId,
+      nodeType: result.nodeType || 'unknown',
+      status: result.status || 'pending',
+      error: result.error,
+      executionTime: result.executionTime,
+      completedAt: result.completedAt,
+      inputs: result.inputs,
+      outputs: result.outputs,
+    }));
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "running":
-        return "text-blue-500 bg-blue-500/10";
-      case "success":
-        return "text-green-500 bg-green-500/10";
-      case "failed":
-        return "text-red-500 bg-red-500/10";
-      default:
-        return "text-gray-500 bg-gray-500/10";
+      case "running": return "bg-blue-500";
+      case "success": return "bg-green-500";
+      case "failed": return "bg-red-500";
+      default: return "bg-gray-500";
     }
   };
 
-  if (collapsed) {
-    return (
-      <aside className="w-12 bg-[#0A0A0A] border-l border-[#222] flex flex-col items-center py-4">
-        <button
-          onClick={() => setCollapsed(false)}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-[#1C1C1E] transition-colors"
-        >
-          <ChevronRight className="w-5 h-5 rotate-180" />
-        </button>
-      </aside>
-    );
-  }
-
-  const selectedRunData = runs.find((r) => r.id === selectedRun);
-
   return (
-    <aside className="w-96 bg-[#0A0A0A] border-l border-[#222] flex flex-col z-20">
+    <aside className="w-80 bg-zinc-900 border-l border-zinc-800 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#222]">
-        <h2 className="text-sm font-semibold text-white">Workflow History</h2>
-        <button
-          onClick={() => setCollapsed(true)}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-[#1C1C1E] transition-colors"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
+      <div className="px-4 py-3 border-b border-zinc-800">
+        <h3 className="text-sm font-medium text-white">History</h3>
       </div>
 
       <ScrollArea className="flex-1">
         {selectedRunData ? (
-          // Detailed view
-          <div className="p-4 space-y-4">
-            {/* Back button */}
+          /* Detail View */
+          <div className="p-4">
             <button
               onClick={() => setSelectedRun(null)}
-              className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+              className="flex items-center gap-1 text-sm text-zinc-400 hover:text-white mb-4"
             >
-              <ChevronDown className="w-4 h-4 rotate-90" />
-              Back to runs
+              <ChevronLeft className="w-4 h-4" />
+              Back
             </button>
 
-            {/* Run summary */}
-            <div className="bg-[#1C1C1E] border border-[#333] rounded-lg p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400">Status</span>
-                <span
-                  className={cn(
-                    "text-xs font-medium px-2 py-1 rounded-full",
-                    getStatusColor(selectedRunData.status)
-                  )}
-                >
-                  {selectedRunData.status}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400">Started</span>
-                <span className="text-xs text-white">
-                  {formatDistanceToNow(selectedRunData.startedAt, { addSuffix: true })}
-                </span>
-              </div>
-              {selectedRunData.completedAt && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Duration</span>
-                  <span className="text-xs text-white">
-                    {Math.round(
-                      (selectedRunData.completedAt.getTime() - selectedRunData.startedAt.getTime()) /
-                        1000
-                    )}
-                    s
-                  </span>
+            <div className="space-y-4">
+              {/* Run Info */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className={cn("w-2 h-2 rounded-full", getStatusColor(selectedRunData.status))} />
+                  <span className="text-sm text-white font-medium">Run #{selectedRunData.id}</span>
                 </div>
-              )}
-            </div>
-
-            {/* Node executions */}
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Node Executions
-              </h3>
-              {selectedRunData.nodeExecutions.map((exec) => (
-                <div
-                  key={exec.id}
-                  className="bg-[#1C1C1E] border border-[#333] rounded-lg p-3 space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(exec.status)}
-                      <span className="text-sm font-medium text-white">{exec.nodeName}</span>
-                    </div>
-                    {exec.executionTime && (
-                      <span className="text-xs text-gray-500">{exec.executionTime}ms</span>
-                    )}
+                
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Status</span>
+                    <span className="text-zinc-300 capitalize">{selectedRunData.status}</span>
                   </div>
-
-                  {exec.inputs && Object.keys(exec.inputs).length > 0 && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-gray-400">Inputs:</span>
-                      <pre className="text-xs bg-[#0A0A0A] border border-[#222] rounded p-2 overflow-auto max-h-24">
-                        {JSON.stringify(exec.inputs, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-
-                  {exec.outputs && Object.keys(exec.outputs).length > 0 && (
-                    <div className="space-y-1">
-                      <span className="text-xs text-gray-400">Outputs:</span>
-                      <pre className="text-xs bg-[#0A0A0A] border border-[#222] rounded p-2 overflow-auto max-h-24">
-                        {JSON.stringify(exec.outputs, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-
-                  {exec.error && (
-                    <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded p-2">
-                      {exec.error}
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Started</span>
+                    <span className="text-zinc-300">
+                      {selectedRunData.startedAt ? format(new Date(selectedRunData.startedAt), 'HH:mm:ss') : '-'}
+                    </span>
+                  </div>
+                  {selectedRunData.duration && (
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Duration</span>
+                      <span className="text-zinc-300">{(selectedRunData.duration / 1000).toFixed(2)}s</span>
                     </div>
                   )}
                 </div>
-              ))}
+              </div>
+
+              {/* Nodes */}
+              <div>
+                <h4 className="text-xs font-medium text-zinc-500 uppercase mb-2">Nodes</h4>
+                <div className="space-y-2">
+                  {getNodeExecutions(selectedRunData).map((exec, idx) => (
+                    <div key={`${exec.nodeId}-${idx}`} className="border border-zinc-800 rounded p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <div className={cn("w-1.5 h-1.5 rounded-full", getStatusColor(exec.status))} />
+                          <span className="text-sm text-white">{exec.nodeName}</span>
+                        </div>
+                        {exec.executionTime && (
+                          <span className="text-xs text-zinc-500">{exec.executionTime}ms</span>
+                        )}
+                      </div>
+                      
+                      {exec.error && (
+                        <p className="text-xs text-red-400 mt-2">{exec.error}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         ) : (
-          // List view
-          <div className="p-4 space-y-2">
+          /* List View */
+          <div className="p-4">
             {runs.length === 0 ? (
-              <div className="text-center text-gray-500 text-sm py-8">
-                No workflow runs yet
-                <p className="text-xs mt-2">Run your workflow to see execution history</p>
+              <div className="text-center py-12">
+                <p className="text-sm text-zinc-500">No runs yet</p>
+                <p className="text-xs text-zinc-600 mt-1">Run your workflow to see history</p>
               </div>
             ) : (
-              runs.map((run) => (
-                <button
-                  key={run.id}
-                  onClick={() => setSelectedRun(run.id)}
-                  className="w-full bg-[#1C1C1E] hover:bg-[#28282B] border border-[#333] hover:border-[#F7FF9E] rounded-lg p-3 text-left transition-all group"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(run.status)}
-                      <span className="text-sm font-medium text-white group-hover:text-[#F7FF9E]">
-                        Run #{run.id.split("-")[1]}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {formatDistanceToNow(run.startedAt, { addSuffix: true })}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-gray-400">
-                    <span>{run.nodeExecutions.length} nodes executed</span>
-                    {run.completedAt && (
-                      <span>
-                        {Math.round(
-                          (run.completedAt.getTime() - run.startedAt.getTime()) / 1000
-                        )}
-                        s
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))
+              <div className="space-y-2">
+                {runs.map((run: any) => {
+                  const nodeCount = getNodeExecutions(run).length;
+                  return (
+                    <button
+                      key={run.id}
+                      onClick={() => setSelectedRun(run.id)}
+                      className="w-full text-left border border-zinc-800 hover:border-zinc-700 rounded p-3 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <div className={cn("w-2 h-2 rounded-full", getStatusColor(run.status))} />
+                          <span className="text-sm text-white font-medium">Run #{run.id}</span>
+                        </div>
+                        <span className="text-xs text-zinc-500">
+                          {run.startedAt ? formatDistanceToNow(new Date(run.startedAt), { addSuffix: true }) : '-'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-zinc-500">
+                        <span>{nodeCount} nodes</span>
+                        {run.duration && <span>{(run.duration / 1000).toFixed(1)}s</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
