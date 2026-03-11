@@ -25,18 +25,13 @@ export function TopNav() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await signOut({ redirectUrl: '/sign-in' });
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
-      });
+      await signOut();
     } catch (error) {
       toast({
         title: "Logout failed",
         description: "There was an error logging out",
         variant: "destructive",
       });
-    } finally {
       setIsLoggingOut(false);
     }
   };

@@ -19,8 +19,11 @@ if (!PUBLISHABLE_KEY) {
 function Router() {
   return (
     <Switch>
-      {/* Sign-in/sign-up: wildcard to also match Clerk's sub-paths
-          e.g. /sign-in/sso-callback, /sign-in/factor-one during OAuth */}
+      {/* Exact match for the base paths (e.g. after sign-out redirect) */}
+      <Route path="/sign-in" component={SignInPage} />
+      <Route path="/sign-up" component={SignUpPage} />
+      {/* Wildcard to also match Clerk's OAuth sub-paths
+          e.g. /sign-in/sso-callback, /sign-in/factor-one */}
       <Route path="/sign-in/:rest*" component={SignInPage} />
       <Route path="/sign-up/:rest*" component={SignUpPage} />
 
@@ -47,6 +50,7 @@ function App() {
       signUpUrl="/sign-up"
       signInFallbackRedirectUrl="/"
       signUpFallbackRedirectUrl="/"
+      afterSignOutUrl="/sign-in"
     >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider delayDuration={0}>
