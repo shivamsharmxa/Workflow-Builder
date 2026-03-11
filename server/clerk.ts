@@ -1,4 +1,4 @@
-import { createClerkClient } from '@clerk/backend';
+import { createClerkClient, verifyToken } from '@clerk/backend';
 import type { Request, Response, NextFunction } from 'express';
 import { db } from './db';
 import { users } from '@shared/schema';
@@ -29,13 +29,13 @@ export const requireClerkAuth = async (
       return res.status(401).json({ error: 'No authentication token provided' });
     }
 
-    // Verify the token with Clerk
+    // Verify the token with Clerk (cryptographic signature check)
     try {
-      // For now, use a simpler approach - decode the token to get userId
-      // In production with proper Clerk setup, this will verify the signature
-      const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-      const clerkUserId = decoded.sub;
-      
+      const payload = await verifyToken(token, {
+        secretKey: process.env.CLERK_SECRET_KEY!,
+      });
+      const clerkUserId = payload.sub;
+
       if (!clerkUserId) {
         return res.status(401).json({ error: 'Invalid token: no user ID' });
       }

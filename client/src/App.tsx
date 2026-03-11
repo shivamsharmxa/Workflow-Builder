@@ -19,11 +19,12 @@ if (!PUBLISHABLE_KEY) {
 function Router() {
   return (
     <Switch>
-      {/* Public routes */}
-      <Route path="/sign-in" component={SignInPage} />
-      <Route path="/sign-up" component={SignUpPage} />
-      
-      {/* Protected route - Assignment Requirement: All workflow routes must be protected */}
+      {/* Sign-in/sign-up: wildcard to also match Clerk's sub-paths
+          e.g. /sign-in/sso-callback, /sign-in/factor-one during OAuth */}
+      <Route path="/sign-in/:rest*" component={SignInPage} />
+      <Route path="/sign-up/:rest*" component={SignUpPage} />
+
+      {/* Protected route */}
       <Route path="/">
         <SignedIn>
           <Editor />
@@ -32,7 +33,7 @@ function Router() {
           <RedirectToSignIn />
         </SignedOut>
       </Route>
-      
+
       <Route component={NotFound} />
     </Switch>
   );
@@ -40,12 +41,12 @@ function Router() {
 
 function App() {
   return (
-    <ClerkProvider 
+    <ClerkProvider
       publishableKey={PUBLISHABLE_KEY}
-      afterSignInUrl="/"
-      afterSignUpUrl="/"
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
     >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider delayDuration={0}>

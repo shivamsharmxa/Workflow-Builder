@@ -214,145 +214,186 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   canUndo: () => get().historyIndex > 0,
   canRedo: () => get().historyIndex < get().history.length - 1,
 
-  // Assignment Requirement: Run entire workflow
+  // Run entire workflow via the server-side orchestrator.
+  // The server handles DAG execution and returns node-level results.
   runEntireWorkflow: async () => {
     if (get().isRunning) return;
-    
-    const executionOrder = getExecutionOrder(get().nodes, get().edges);
-    const startTime = Date.now();
-    const nodeResults: Record<string, any> = {};
-    
+
+    const workflowId = get().currentWorkflowId;
+    if (!workflowId) {
+      alert('Save the workflow before running it.');
+      return;
+    }
+
     set({ isRunning: true });
-    
-    // Get workflow ID from current workflow (will be passed from Editor component)
-    const workflowId = (get() as any).currentWorkflowId;
-    
-    let runId: number | null = null;
-    
-    // Create workflow run record
-    if (workflowId) {
-      try {
-        const response = await fetch(`/api/workflows/${workflowId}/runs`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workflowId,
-            status: 'running',
-            nodeResults: {},
-          }),
-          credentials: 'include',
+
+    // Mark all nodes as running while we wait for the server
+    for (const node of get().nodes) {
+      get().updateNodeData(node.id, { status: 'running' });
+    }
+
+    try {
+      const response = await fetch(`/api/workflows/${workflowId}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error ?? 'Workflow execution failed');
+      }
+
+      const { nodeResults } = data.result as {
+        nodeResults: Record<string, { status: string; output?: any; error?: string }>;
+      };
+
+      // Apply per-node results back to the canvas
+      for (const [nodeId, result] of Object.entries(nodeResults)) {
+        get().updateNodeData(nodeId, {
+          status: result.status === 'success' ? 'success' : 'error',
+          output: result.output,
+          error: result.error,
         });
-        
-        if (response.ok) {
-          const run = await response.json();
-          runId = run.id;
-        }
-      } catch (error) {
-        console.error('Failed to create workflow run:', error);
       }
-    }
-    
-    let hasError = false;
-    
-    // Execute nodes in topological order
-    for (const nodeId of executionOrder) {
-      const node = get().nodes.find(n => n.id === nodeId);
-      if (!node) continue;
-      
-      const nodeStartTime = Date.now();
-      
-      // Set to running
-      get().updateNodeData(nodeId, { status: 'running' });
-      
-      try {
-        // Simulate execution
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Set to success
-        get().updateNodeData(nodeId, { status: 'success' });
-        
-        nodeResults[nodeId] = {
-          status: 'success',
-          nodeType: node.type,
-          nodeName: node.data.label || node.type,
-          executionTime: Date.now() - nodeStartTime,
-          completedAt: new Date().toISOString(),
-        };
-      } catch (error: any) {
-        hasError = true;
-        get().updateNodeData(nodeId, { status: 'error' });
-        
-        nodeResults[nodeId] = {
-          status: 'failed',
-          nodeType: node.type,
-          nodeName: node.data.label || node.type,
-          error: error.message,
-          executedAt: new Date().toISOString(),
-        };
+    } catch (error: any) {
+      console.error('Workflow execution failed:', error);
+      // Mark all nodes as errored if the whole request failed
+      for (const node of get().nodes) {
+        get().updateNodeData(node.id, { status: 'error' });
       }
+    } finally {
+      set({ isRunning: false });
     }
-    
-    const duration = Date.now() - startTime;
-    
-    // Update workflow run with results
-    if (runId && workflowId) {
-      try {
-        await fetch(`/api/runs/${runId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            status: hasError ? 'failed' : 'success',
-            nodeResults,
-            duration,
-          }),
-          credentials: 'include',
-        });
-      } catch (error) {
-        console.error('Failed to update workflow run:', error);
-      }
-    }
-    
-    set({ isRunning: false });
   },
-  
-  // Assignment Requirement: Run single node
+
+  // Run a single node directly via the individual node execution endpoints.
   runSingleNode: async (nodeId: string) => {
     if (get().isRunning) return;
-    
+
+    const node = get().nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
     set({ isRunning: true });
     get().updateNodeData(nodeId, { status: 'running' });
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    get().updateNodeData(nodeId, { status: 'success' });
-    set({ isRunning: false });
+
+    try {
+      const inputs = getNodeInputs(nodeId, get().nodes, get().edges);
+      const primaryInput = inputs['default'] ?? Object.values(inputs)[0];
+
+      let result: any = null;
+
+      if (node.type === 'llm' || node.type === 'llmNode') {
+        const resp = await fetch('/api/execute/llm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            model: node.data.model,
+            systemPrompt: node.data.systemPrompt,
+            userMessage: node.data.userMessage ?? node.data.prompt ?? (typeof primaryInput === 'string' ? primaryInput : ''),
+            images: [],
+          }),
+        });
+        const json = await resp.json();
+        if (!json.success) throw new Error(json.error ?? 'LLM failed');
+        result = json.result;
+
+      } else if (node.type === 'cropImage' || node.type === 'cropImageNode') {
+        const imageUrl = node.data.imageUrl ?? (typeof primaryInput === 'string' ? primaryInput : null);
+        if (!imageUrl) throw new Error('No image input for CropImageNode');
+        const resp = await fetch('/api/execute/crop-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ imageUrl, x: node.data.x ?? 0, y: node.data.y ?? 0, width: node.data.width ?? 100, height: node.data.height ?? 100 }),
+        });
+        const json = await resp.json();
+        if (!json.success) throw new Error(json.error ?? 'Crop failed');
+        result = json.result;
+
+      } else if (node.type === 'extractFrame' || node.type === 'extractFrameNode') {
+        const videoUrl = node.data.videoUrl ?? (typeof primaryInput === 'string' ? primaryInput : null);
+        if (!videoUrl) throw new Error('No video input for ExtractFrameNode');
+        const resp = await fetch('/api/execute/extract-frame', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ videoUrl, timestamp: node.data.timestamp ?? 0, isPercentage: node.data.isPercentage ?? false }),
+        });
+        const json = await resp.json();
+        if (!json.success) throw new Error(json.error ?? 'Frame extraction failed');
+        result = json.result;
+      }
+
+      get().updateNodeData(nodeId, { status: 'success', output: result });
+    } catch (error: any) {
+      console.error('Single node execution failed:', error);
+      get().updateNodeData(nodeId, { status: 'error', error: error.message });
+    } finally {
+      set({ isRunning: false });
+    }
   },
-  
-  // Assignment Requirement: Run selected nodes
+
+  // Run selected nodes via the server orchestrator with only those nodes included.
   runSelectedNodes: async () => {
     if (get().isRunning) return;
-    
-    const selectedNodes = get().nodes.filter(n => 
+
+    const selectedNodes = get().nodes.filter(n =>
       n.selected || n.id === get().selectedNodeId
     );
-    
+
     if (selectedNodes.length === 0) {
       alert('No nodes selected');
       return;
     }
-    
-    set({ isRunning: true });
-    
-    // Run selected nodes in parallel (Assignment Requirement: parallel execution)
-    await Promise.all(
-      selectedNodes.map(async (node) => {
-        get().updateNodeData(node.id, { status: 'running' });
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        get().updateNodeData(node.id, { status: 'success' });
-      })
+
+    const selectedIds = new Set(selectedNodes.map(n => n.id));
+    const relevantEdges = get().edges.filter(
+      e => selectedIds.has(e.source) && selectedIds.has(e.target)
     );
-    
-    set({ isRunning: false });
+
+    set({ isRunning: true });
+    for (const node of selectedNodes) {
+      get().updateNodeData(node.id, { status: 'running' });
+    }
+
+    try {
+      // Import the orchestrator type at runtime via a direct server call.
+      // We re-use the /execute endpoint but only pass the selected subgraph.
+      const resp = await fetch('/api/execute/subgraph', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ nodes: selectedNodes, edges: relevantEdges }),
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error ?? 'Subgraph execution failed');
+      }
+
+      const { nodeResults } = data.result as {
+        nodeResults: Record<string, { status: string; output?: any; error?: string }>;
+      };
+
+      for (const [nodeId, result] of Object.entries(nodeResults)) {
+        get().updateNodeData(nodeId, {
+          status: result.status === 'success' ? 'success' : 'error',
+          output: result.output,
+          error: result.error,
+        });
+      }
+    } catch (error: any) {
+      console.error('Selected node execution failed:', error);
+      for (const node of selectedNodes) {
+        get().updateNodeData(node.id, { status: 'error' });
+      }
+    } finally {
+      set({ isRunning: false });
+    }
   },
   
   // Assignment Requirement: Export workflow as JSON

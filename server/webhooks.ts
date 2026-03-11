@@ -1,6 +1,8 @@
 import type { Express, Request, Response } from "express";
 import { Webhook } from "svix";
-import { prisma } from "./prisma";
+import { db } from "./db";
+import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 // Clerk webhook types
 type ClerkWebhookEvent = {
@@ -36,7 +38,7 @@ export function registerWebhooks(app: Express) {
         return res.status(400).json({ error: "Missing svix headers" });
       }
 
-      // Get the raw body (need to access req.rawBody set in index.ts)
+      // Get the raw body (set by index.ts verify callback)
       const payload = (req as any).rawBody;
 
       // Verify the webhook signature
@@ -54,61 +56,51 @@ export function registerWebhooks(app: Express) {
         return res.status(400).json({ error: "Webhook verification failed" });
       }
 
-      // Handle the webhook event
       const { type, data } = evt;
 
       switch (type) {
-        case "user.created":
-          // Create user in database
+        case "user.created": {
           const primaryEmail = data.email_addresses?.[0]?.email_address;
-          
+
           if (!primaryEmail) {
             console.error("No email found for user", data.id);
             return res.status(400).json({ error: "No email found" });
           }
 
-          await prisma.user.upsert({
-            where: { clerkId: data.id },
-            create: {
-              clerkId: data.id,
-              email: primaryEmail,
-            },
-            update: {
-              email: primaryEmail,
-            },
-          });
+          await db
+            .insert(users)
+            .values({ clerkId: data.id, email: primaryEmail })
+            .onConflictDoUpdate({
+              target: users.clerkId,
+              set: { email: primaryEmail },
+            });
 
           console.log(`✅ User created in database: ${data.id} (${primaryEmail})`);
           break;
+        }
 
-        case "user.updated":
-          // Update user in database
+        case "user.updated": {
           const updatedEmail = data.email_addresses?.[0]?.email_address;
 
           if (updatedEmail) {
-            await prisma.user.upsert({
-              where: { clerkId: data.id },
-              create: {
-                clerkId: data.id,
-                email: updatedEmail,
-              },
-              update: {
-                email: updatedEmail,
-              },
-            });
+            await db
+              .insert(users)
+              .values({ clerkId: data.id, email: updatedEmail })
+              .onConflictDoUpdate({
+                target: users.clerkId,
+                set: { email: updatedEmail },
+              });
 
             console.log(`✅ User updated in database: ${data.id} (${updatedEmail})`);
           }
           break;
+        }
 
-        case "user.deleted":
-          // Delete user from database (cascade will handle workflows)
-          await prisma.user.delete({
-            where: { clerkId: data.id },
-          });
-
+        case "user.deleted": {
+          await db.delete(users).where(eq(users.clerkId, data.id));
           console.log(`✅ User deleted from database: ${data.id}`);
           break;
+        }
 
         default:
           console.log(`Unhandled webhook event type: ${type}`);
