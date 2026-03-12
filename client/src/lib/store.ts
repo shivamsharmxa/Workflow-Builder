@@ -13,6 +13,7 @@ import {
   applyEdgeChanges,
 } from 'reactflow';
 import { wouldCreateCycle, getExecutionOrder } from './dagValidation';
+import { apiUrl } from './api';
 
 // Start with empty canvas - no default nodes
 const initialNodes: Node[] = [];
@@ -233,7 +234,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     }
 
     try {
-      const response = await fetch(`/api/workflows/${workflowId}/execute`, {
+      const response = await fetch(apiUrl(`/api/workflows/${workflowId}/execute`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -285,7 +286,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       let result: any = null;
 
       if (node.type === 'llm' || node.type === 'llmNode') {
-        const resp = await fetch('/api/execute/llm', {
+        const resp = await fetch(apiUrl('/api/execute/llm'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -303,7 +304,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       } else if (node.type === 'cropImage' || node.type === 'cropImageNode') {
         const imageUrl = node.data.imageUrl ?? (typeof primaryInput === 'string' ? primaryInput : null);
         if (!imageUrl) throw new Error('No image input for CropImageNode');
-        const resp = await fetch('/api/execute/crop-image', {
+        const resp = await fetch(apiUrl('/api/execute/crop-image'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -316,7 +317,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       } else if (node.type === 'extractFrame' || node.type === 'extractFrameNode') {
         const videoUrl = node.data.videoUrl ?? (typeof primaryInput === 'string' ? primaryInput : null);
         if (!videoUrl) throw new Error('No video input for ExtractFrameNode');
-        const resp = await fetch('/api/execute/extract-frame', {
+        const resp = await fetch(apiUrl('/api/execute/extract-frame'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -362,7 +363,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     try {
       // Import the orchestrator type at runtime via a direct server call.
       // We re-use the /execute endpoint but only pass the selected subgraph.
-      const resp = await fetch('/api/execute/subgraph', {
+      const resp = await fetch(apiUrl('/api/execute/subgraph'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

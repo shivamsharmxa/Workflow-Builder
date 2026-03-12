@@ -1,4 +1,5 @@
 import { useAuth } from "@clerk/clerk-react";
+import { apiUrl } from "./api";
 
 /**
  * Custom fetch wrapper that automatically includes Clerk auth token
@@ -19,7 +20,7 @@ export async function fetchWithAuth(
     Authorization: `Bearer ${token}`,
   };
 
-  return fetch(url, {
+  return fetch(apiUrl(url), {
     ...options,
     headers,
   });
